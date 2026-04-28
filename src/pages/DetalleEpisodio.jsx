@@ -86,57 +86,64 @@ export default function DetalleEpisodio() {
           </div>
         </div>
 
-        {/* Stats automáticos */}
-        <div style={styles.statsGrid}>
-                    <div style={styles.chartContainer}>
-                  <h3 style={styles.seccionTitulo}>Evolución del Dolor (EVA)</h3>
-                  <div style={{ height: 250, marginTop: "1rem" }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart 
-                        data={[...sesiones].sort((a, b) => Number(a.numeroCita) - Number(b.numeroCita))} 
-                      > 
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="numeroCita" label={{ value: 'Sesión', position: 'insideBottomRight', offset: -5 }} />
-                        <YAxis domain={[0, 10]} />
-                        <Tooltip />
-                        <Legend />
-                        <Line 
-                          type="monotone" 
-                          dataKey="dolorInicio" 
-                          stroke="#ef4444" 
-                          name="Dolor Inicio" 
-                          strokeWidth={2}
-                          dot={{ r: 4 }} 
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="dolorFin" 
-                          stroke="#22c55e" 
-                          name="Dolor Fin" 
-                          strokeWidth={2}
-                          dot={{ r: 4 }} 
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-          <div style={styles.statCard}>
-            <span style={styles.statNum}>{sesiones.length}</span>
-            <span style={styles.statLabel}>Sesiones totales</span>
+        {/* Dashboard: Gráfica y Stats */}
+          <div style={styles.dashboardContainer}>
+            
+            {/* Sección 1: Gráfica sola ocupando todo el ancho */}
+            <div style={styles.chartSection}>
+              <h3 style={styles.seccionTitulo}>Evolución del Dolor (EVA)</h3>
+              <div style={{ height: 250, marginTop: "1rem" }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart 
+                    data={[...sesiones].sort((a, b) => Number(a.numeroCita) - Number(b.numeroCita))} 
+                  > 
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="numeroCita" label={{ value: 'Sesión', position: 'insideBottomRight', offset: -5 }} />
+                    <YAxis domain={[0, 10]} />
+                    <Tooltip />
+                    <Legend />
+                    <Line 
+                      type="monotone" 
+                      dataKey="dolorInicio" 
+                      stroke="#ef4444" 
+                      name="Dolor Inicio" 
+                      strokeWidth={2}
+                      dot={{ r: 4 }} 
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="dolorFin" 
+                      stroke="#22c55e" 
+                      name="Dolor Fin" 
+                      strokeWidth={2}
+                      dot={{ r: 4 }} 
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Sección 2: Tarjetas 2x2 */}
+            <div style={styles.statsGrid}>
+              <div style={styles.statCard}>
+                <span style={{...styles.statNum, color: "#1e293b"}}>{sesiones.length}</span>
+                <span style={styles.statLabel}>Sesiones totales</span>
+              </div>
+              <div style={styles.statCard}>
+                <span style={{...styles.statNum, color: "#22c55e"}}>{sesiones.filter(s => s.asistio).length}</span>
+                <span style={styles.statLabel}>Asistidas</span>
+              </div>
+              <div style={styles.statCard}>
+                <span style={{...styles.statNum, color: "#ef4444"}}>{sesiones.filter(s => !s.asistio).length}</span>
+                <span style={styles.statLabel}>Faltas</span>
+              </div>
+              <div style={styles.statCard}>
+                <span style={{...styles.statNum, color: "#2563eb"}}>{promedioMejora !== null ? promedioMejora + "%" : "—"}</span>
+                <span style={styles.statLabel}>Sesiones con mejora</span>
+              </div>
+            </div>
+
           </div>
-          <div style={styles.statCard}>
-            <span style={styles.statNum}>{sesiones.filter(s => s.asistio).length}</span>
-            <span style={styles.statLabel}>Asistidas</span>
-          </div>
-          <div style={styles.statCard}>
-            <span style={styles.statNum}>{sesiones.filter(s => !s.asistio).length}</span>
-            <span style={styles.statLabel}>Faltas</span>
-          </div>
-          <div style={styles.statCard}>
-            <span style={styles.statNum}>{promedioMejora !== null ? promedioMejora + "%" : "—"}</span>
-            <span style={styles.statLabel}>Sesiones con mejora</span>
-          </div>
-        </div>
 
         {/* Sesiones */}
             <div style={styles.seccion}>
@@ -200,10 +207,16 @@ const styles = {
   titulo: { margin: 0, fontSize: "1.2rem", color: "#1e293b" },
   subinfo: { margin: 0, color: "#64748b", fontSize: "0.82rem" },
   badge: { marginLeft: "auto", padding: "0.25rem 0.65rem", borderRadius: "999px", color: "white", fontSize: "0.75rem", fontWeight: "600", whiteSpace: "nowrap" },
-  statsGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "0.65rem", marginBottom: "1rem" },
+  
+  // Novedades para el Dashboard (Gráfica + Tarjetas)
+  dashboardContainer: { display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1rem" },
+  chartSection: { background: "white", borderRadius: "1rem", padding: "1rem", border: "0.5px solid #e2e8f0", width: "100%", boxSizing: "border-box" },
+  statsGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "0.65rem", width: "100%" },
   statCard: { background: "white", borderRadius: "0.75rem", padding: "0.85rem", border: "0.5px solid #e2e8f0", textAlign: "center", display: "flex", flexDirection: "column", gap: "0.2rem" },
   statNum: { fontSize: "1.5rem", fontWeight: "700", color: "#185FA5" },
   statLabel: { fontSize: "0.75rem", color: "#64748b" },
+  
+  // Sesiones
   seccion: { background: "white", borderRadius: "1rem", padding: "1rem", border: "0.5px solid #e2e8f0" },
   seccionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" },
   seccionTitulo: { margin: 0, color: "#1e293b", fontSize: "1rem" },
