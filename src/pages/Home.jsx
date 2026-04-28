@@ -110,7 +110,7 @@ export default function Home() {
 
 const styles = {
   container: {
-    padding: "2rem",
+    padding: "0.75rem",
     maxWidth: "900px",
     margin: "0 auto",
   },
