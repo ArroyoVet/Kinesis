@@ -238,7 +238,7 @@ const styles = {
 },
   headerRow: { 
   display: "grid", 
-  gridTemplateColumns: `70px repeat(${esMobil ? 5 : 7}, 1fr)`, 
+  gridTemplateColumns: `70px repeat(${esMobil ? 7 : 7}, 1fr)`, 
   borderBottom: "1px solid #e2e8f0", 
   background: "#f8fafc" 
 },
@@ -248,7 +248,7 @@ const styles = {
   diaNum: { fontSize: "1rem", fontWeight: "700", width: "30px", height: "30px", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto", borderRadius: "50%" },
   row: { 
   display: "grid", 
-  gridTemplateColumns: `70px repeat(${esMobil ? 5 : 7}, 1fr)`, 
+  gridTemplateColumns: `70px repeat(${esMobil ? 7 : 7}, 1fr)`, 
   borderBottom: "1px solid #f1f5f9", 
   minHeight: "45px" 
 },
