@@ -12,34 +12,40 @@ export default function DetalleEpisodio() {
   const { id, epId } = useParams();
   const navigate = useNavigate();
   const { role } = useAuth();
+  
   const [episodio, setEpisodio] = useState(null);
   const [sesiones, setSesiones] = useState([]);
   const [paciente, setPaciente] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Estados para la ventana de gracia del cambio de estado
+  // Estados para deshacer
   const [timerId, setTimerId] = useState(null);
   const [estadoOriginal, setEstadoOriginal] = useState(null);
   const [cambioPendiente, setCambioPendiente] = useState(false);
 
   useEffect(() => {
     async function cargar() {
-      const pacSnap = await getDoc(doc(db, "patients", id));
-      if (pacSnap.exists()) setPaciente({ id: pacSnap.id, ...pacSnap.data() });
+      try {
+        const pacSnap = await getDoc(doc(db, "patients", id));
+        if (pacSnap.exists()) setPaciente({ id: pacSnap.id, ...pacSnap.data() });
 
-      const epSnap = await getDoc(doc(db, "patients", id, "episodes", epId));
-      if (epSnap.exists()) setEpisodio({ id: epSnap.id, ...epSnap.data() });
+        const epSnap = await getDoc(doc(db, "patients", id, "episodes", epId));
+        if (epSnap.exists()) setEpisodio({ id: epSnap.id, ...epSnap.data() });
 
-      const sesSnap = await getDocs(
-        query(collection(db, "patients", id, "episodes", epId, "sessions"), orderBy("fecha", "desc"))
-      );
-      setSesiones(sesSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setLoading(false);
+        const sesSnap = await getDocs(
+          query(collection(db, "patients", id, "episodes", epId, "sessions"), orderBy("fecha", "desc"))
+        );
+        setSesiones(sesSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      } catch (error) {
+        console.error("Error al cargar datos:", error);
+      } finally {
+        setLoading(false);
+      }
     }
     cargar();
   }, [id, epId]);
 
-  // Limpiar el timer si el componente se desmonta para evitar fugas de memoria
+  // Limpiar timer si sale de la pantalla
   useEffect(() => {
     return () => {
       if (timerId) clearTimeout(timerId);
@@ -57,12 +63,10 @@ export default function DetalleEpisodio() {
     }
   }
 
-  // Lógica de cambio de estado con ventana de gracia
-  // 1. EL CAMBIO AHORA ES INMEDIATO EN FIREBASE
+  // 1. CAMBIO INMEDIATO + TIMER DE DESHACER
   async function handleCambioConGracia(nuevoEstado) {
-    if (nuevoEstado === episodio.estado) return;
+    if (!episodio || nuevoEstado === episodio.estado) return;
 
-    // Guardamos el estado original por si quiere deshacer
     if (!cambioPendiente) {
       setEstadoOriginal(episodio.estado);
     }
@@ -70,23 +74,23 @@ export default function DetalleEpisodio() {
     const fechaRegistro = new Date().toISOString();
 
     try {
-      // A. GUARDAMOS EN FIREBASE AL INSTANTE
+      // Guardado global inmediato
       const epRef = doc(db, "patients", id, "episodes", epId);
       await updateDoc(epRef, { estado: nuevoEstado, fecha_registro_estado: fechaRegistro });
-      
+
       const pacRef = doc(db, "patients", id);
       await updateDoc(pacRef, { estado: nuevoEstado, fecha_registro_estado: fechaRegistro });
 
-      // B. ACTUALIZAMOS LA PANTALLA VISUALMENTE
+      // Actualización visual
       setEpisodio(prev => ({ ...prev, estado: nuevoEstado }));
       setCambioPendiente(true);
 
-      // C. EL TEMPORIZADOR AHORA SOLO SIRVE PARA OCULTAR EL BOTÓN "DESHACER"
+      // Inicia el cronómetro de 1 minuto para borrar el botón "Deshacer"
       if (timerId) clearTimeout(timerId);
       const newTimer = setTimeout(() => {
         setCambioPendiente(false);
         setEstadoOriginal(null);
-      }, 60000); // 1 minuto (60000 ms) para que desaparezca el aviso
+      }, 60000); 
       setTimerId(newTimer);
 
     } catch (e) {
@@ -95,34 +99,25 @@ export default function DetalleEpisodio() {
     }
   }
 
-  // 2. EL BOTÓN DESHACER VUELVE A ESCRIBIR EN FIREBASE
+  // 2. BOTÓN DESHACER (Revertir Firebase)
   async function cancelarCambio() {
     if (timerId) clearTimeout(timerId);
     
     const estadoAnterior = estadoOriginal || "en curso";
     
     try {
-      // Revertimos en Firebase al instante
       const epRef = doc(db, "patients", id, "episodes", epId);
       await updateDoc(epRef, { estado: estadoAnterior });
       
       const pacRef = doc(db, "patients", id);
       await updateDoc(pacRef, { estado: estadoAnterior });
 
-      // Revertimos en la pantalla
       setEpisodio(prev => ({ ...prev, estado: estadoAnterior }));
       setCambioPendiente(false);
       setEstadoOriginal(null);
     } catch (e) {
       console.error("Error al deshacer:", e);
     }
-  }
-
-  function cancelarCambio() {
-    if (timerId) clearTimeout(timerId);
-    setEpisodio(prev => ({ ...prev, estado: estadoOriginal || "en curso" }));
-    setCambioPendiente(false);
-    setEstadoOriginal(null);
   }
 
   if (loading) return <div style={styles.loading}>Cargando...</div>;
@@ -133,70 +128,126 @@ export default function DetalleEpisodio() {
     : null;
 
   return (
-  <div>
-    <Navbar />
-    <div style={styles.container}>
-      
-      {/* 1. SECCIÓN SUPERIOR: Datos del Paciente (Nombre, edad, etc.) */}
-      <div style={styles.headerPaciente}>
-        <h2>{paciente.nombre}</h2>
-        <p>Teléfono: {paciente.telefono}</p>
-      </div>
+    <div>
+      <Navbar />
+      <div style={styles.container}>
+        <button style={styles.btnVolver} onClick={() => navigate(`/pacientes/${id}`)}>← Volver</button>
 
-      {/* 2. SECCIÓN INFERIOR: Historial de Episodios */}
-      <div style={styles.seccionEpisodios}>
-        <h3>Historial de Tratamientos</h3>
-        <button onClick={crearNuevoEpisodio}>+ Nuevo Episodio</button>
-
-        {/* AQUÍ ES DONDE VA EL MAP: Si no hay episodios, muestra vacío */}
-        {episodios.length === 0 ? (
-          <p>Este paciente aún no tiene tratamientos registrados.</p>
-        ) : (
-          /* Si sí hay episodios, React usa el map para dibujar cada tarjeta */
-          <div style={styles.listaEpisodios}>
+        {/* Header episodio */}
+        <div style={styles.header}>
+          <div style={{ ...styles.colorDot, background: episodio.color || "#2563eb" }} />
+          <div>
+            <h2 style={styles.titulo}>{episodio.motivoConsulta}</h2>
+            <p style={styles.subinfo}>
+              {paciente?.nombre} · Inicio: {episodio.fechaInicio} · {episodio.seguro}
+            </p>
+          </div>
+          
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "1rem" }}>
+            <select
+              value={episodio.estado || "en curso"}
+              onChange={(e) => handleCambioConGracia(e.target.value)}
+              style={{ ...styles.badgeSelect, background: badgeColor(episodio.estado) }}
+            >
+              <option value="en curso">En curso</option>
+              <option value="alta">Alta médica</option>
+              <option value="abandono">Abandono</option>
+            </select>
             
-            {episodios.map((ep) => (
-              
-              /* ESTA ES LA TARJETA INDIVIDUAL DE CADA EPISODIO */
-              <div key={ep.id} style={styles.episodioCard} onClick={() => irAlDetalle(ep.id)}>
-                
-                {/* Lado izquierdo de la tarjeta: Info del episodio */}
-                <div style={styles.cardLeft}>
-                  <h4>{ep.motivoConsulta}</h4>
-                  <p>Inició: {ep.fechaInicio}</p>
-                </div>
+            {role !== "admin" && (
+               <button 
+                 style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "1.2rem" }} 
+                 onClick={handleEliminarEpisodio}
+               >
+                 🗑️
+               </button>
+            )}
+          </div>
+        </div>
 
-                {/* Lado derecho de la tarjeta: El selector de estado */}
-                <div style={styles.cardRight}>
-                  
-                  {/* Aviso de guardado (opcional) */}
-                  {episodiosPendientes[ep.id] && <span>⏳ Guardando...</span>}
-
-                  {/* EL SELECTOR INTERACTIVO */}
-                  <select
-                    value={ep.estado || "en curso"}
-                    onClick={(e) => e.stopPropagation()} // Esto evita que al hacer clic en el select, entres al episodio por accidente
-                    onChange={(e) => handleCambioEstadoEpisodio(ep.id, e.target.value, ep.estado)}
-                    style={{ ...styles.badgeSelect, background: badgeColor(ep.estado) }}
-                  >
-                    <option value="en curso">En curso</option>
-                    <option value="alta">Alta</option>
-                    <option value="abandono">Abandono</option>
-                  </select>
-                  
-                </div>
-              </div>
-              /* FIN DE LA TARJETA INDIVIDUAL */
-
-            ))}
-
+        {/* Banner de Deshacer */}
+        {cambioPendiente && (
+          <div style={styles.undoBanner}>
+            <span>Estado guardado como <b>"{episodio.estado}"</b>.</span>
+            <button onClick={cancelarCambio} style={styles.btnUndo}>Deshacer</button>
           </div>
         )}
-      </div>
 
+        {/* Dashboard 2x2 */}
+        <div style={styles.dashboardContainer}>
+          <div style={styles.chartSection}>
+            <h3 style={styles.seccionTitulo}>Evolución del Dolor (EVA)</h3>
+            <div style={{ height: 250, marginTop: "1rem" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={[...sesiones].sort((a, b) => Number(a.numeroCita) - Number(b.numeroCita))}> 
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="numeroCita" label={{ value: 'Sesión', position: 'insideBottomRight', offset: -5 }} />
+                  <YAxis domain={[0, 10]} />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="dolorInicio" stroke="#ef4444" name="Dolor Inicio" strokeWidth={2} dot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="dolorFin" stroke="#22c55e" name="Dolor Fin" strokeWidth={2} dot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div style={styles.statsGrid}>
+            <div style={styles.statCard}>
+              <span style={{...styles.statNum, color: "#1e293b"}}>{sesiones.length}</span>
+              <span style={styles.statLabel}>Sesiones totales</span>
+            </div>
+            <div style={styles.statCard}>
+              <span style={{...styles.statNum, color: "#22c55e"}}>{sesiones.filter(s => s.asistio).length}</span>
+              <span style={styles.statLabel}>Asistidas</span>
+            </div>
+            <div style={styles.statCard}>
+              <span style={{...styles.statNum, color: "#ef4444"}}>{sesiones.filter(s => !s.asistio).length}</span>
+              <span style={styles.statLabel}>Faltas</span>
+            </div>
+            <div style={styles.statCard}>
+              <span style={{...styles.statNum, color: "#2563eb"}}>{promedioMejora !== null ? promedioMejora + "%" : "—"}</span>
+              <span style={styles.statLabel}>Sesiones con mejora</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Sesiones Listado */}
+        <div style={styles.seccion}>
+          <div style={styles.seccionHeader}>
+            <h3 style={styles.seccionTitulo}>Sesiones</h3>
+            {role !== "admin" && (
+              <button style={styles.btnNuevo} onClick={() => navigate(`/pacientes/${id}/episodios/${epId}/nueva-sesion`)}>
+                + Nueva sesión
+              </button>
+            )}
+          </div>
+
+          {sesiones.length === 0 && <p style={styles.vacio}>No hay sesiones registradas</p>}
+
+          {sesiones.map((s, i) => (
+            <div key={s.id} style={styles.sesionCard} onClick={() => navigate(`/pacientes/${id}/episodios/${epId}/sesiones/${s.id}`)}>
+              <div style={styles.sesionLeft}>
+                <span style={styles.sesionNum}>#{sesiones.length - i}</span>
+                <div>
+                  <p style={styles.sesionFecha}>{s.fecha} · {s.hora}</p>
+                  <p style={styles.sesionDetalle}>
+                    {s.asistio ? `Dolor: ${s.dolorInicio}→${s.dolorFin} · ${s.mejoraRespecto}` : "⚠️ No asistió"}
+                  </p>
+                </div>
+              </div>
+              <div style={styles.sesionRight}>
+                {s.tecnicasAplicadas?.slice(0, 2).map(t => (
+                  <span key={t} style={styles.tecnicaChip}>{t}</span>
+                ))}
+                <span style={styles.flecha}>›</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
-  </div>
-);
+  );
 }
 
 function badgeColor(estado) {
@@ -213,17 +264,14 @@ const styles = {
   colorDot: { width: "14px", height: "14px", borderRadius: "50%", flexShrink: 0 },
   titulo: { margin: 0, fontSize: "1.2rem", color: "#1e293b" },
   subinfo: { margin: 0, color: "#64748b", fontSize: "0.82rem" },
-  
-  // Nuevos estilos para el Selector y el Banner de Deshacer
   badgeSelect: { padding: "0.25rem 0.65rem", borderRadius: "999px", color: "white", fontSize: "0.75rem", fontWeight: "600", border: "none", outline: "none", cursor: "pointer", appearance: "none", textAlign: "center" },
   undoBanner: { background: "#fffbeb", color: "#b45309", padding: "0.75rem 1rem", borderRadius: "0.75rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", border: "1px solid #fde68a" },
   btnUndo: { background: "#b45309", color: "white", border: "none", padding: "0.4rem 0.8rem", borderRadius: "0.5rem", cursor: "pointer", fontSize: "0.75rem", fontWeight: "bold" },
-  
   dashboardContainer: { display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1rem" },
   chartSection: { background: "white", borderRadius: "1rem", padding: "1rem", border: "0.5px solid #e2e8f0", width: "100%", boxSizing: "border-box" },
   statsGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "0.65rem", width: "100%" },
   statCard: { background: "white", borderRadius: "0.75rem", padding: "0.85rem", border: "0.5px solid #e2e8f0", textAlign: "center", display: "flex", flexDirection: "column", gap: "0.2rem" },
-  statNum: { fontSize: "1.5rem", fontWeight: "700", color: "#185FA5" },
+  statNum: { fontSize: "1.5rem", fontWeight: "700" },
   statLabel: { fontSize: "0.75rem", color: "#64748b" },
   seccion: { background: "white", borderRadius: "1rem", padding: "1rem", border: "0.5px solid #e2e8f0" },
   seccionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" },
