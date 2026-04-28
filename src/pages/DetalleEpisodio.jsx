@@ -73,24 +73,27 @@ export default function DetalleEpisodio() {
     // Limpiamos cualquier temporizador anterior
     if (timerId) clearTimeout(timerId);
 
-    // Creamos el nuevo temporizador de 10 minutos (600000 ms)
-    // Nota para pruebas: puedes cambiar 600000 por 5000 (5 segundos) para probar que se guarda en Firebase.
+    // Creamos el nuevo temporizador de 1 minutos (60000 ms)
+    // Nota para pruebas: puedes cambiar 60000 por 5000 (5 segundos) para probar que se guarda en Firebase.
     const newTimer = setTimeout(async () => {
       try {
         const epRef = doc(db, "patients", id, "episodes", epId);
-        const fechaRegistro = new Date().toISOString();
-        
         await updateDoc(epRef, {
           estado: nuevoEstado,
           fecha_registro_estado: fechaRegistro
         });
-        
+        const pacRef = doc(db, "patients", id);
+        await updateDoc(pacRef, {
+          estado: nuevoEstado,
+          fecha_registro_estado: fechaRegistro
+        });
+
         setCambioPendiente(false);
         setEstadoOriginal(null);
       } catch (e) {
         console.error("Error guardando el estado definitivo:", e);
       }
-    }, 600000); 
+    }, 60000); 
 
     setTimerId(newTimer);
   }
@@ -110,133 +113,70 @@ export default function DetalleEpisodio() {
     : null;
 
   return (
-    <div>
-      <Navbar />
-      <div style={styles.container}>
-        <button style={styles.btnVolver} onClick={() => navigate(`/pacientes/${id}`)}>← Volver</button>
+  <div>
+    <Navbar />
+    <div style={styles.container}>
+      
+      {/* 1. SECCIÓN SUPERIOR: Datos del Paciente (Nombre, edad, etc.) */}
+      <div style={styles.headerPaciente}>
+        <h2>{paciente.nombre}</h2>
+        <p>Teléfono: {paciente.telefono}</p>
+      </div>
 
-        {/* Header episodio */}
-        <div style={styles.header}>
-          <div style={{ ...styles.colorDot, background: episodio.color || "#2563eb" }} />
-          <div>
-            <h2 style={styles.titulo}>{episodio.motivoConsulta}</h2>
-            <p style={styles.subinfo}>
-              {paciente?.nombre} · Inicio: {episodio.fechaInicio} · {episodio.seguro}
-            </p>
-          </div>
-          
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "1rem" }}>
+      {/* 2. SECCIÓN INFERIOR: Historial de Episodios */}
+      <div style={styles.seccionEpisodios}>
+        <h3>Historial de Tratamientos</h3>
+        <button onClick={crearNuevoEpisodio}>+ Nuevo Episodio</button>
+
+        {/* AQUÍ ES DONDE VA EL MAP: Si no hay episodios, muestra vacío */}
+        {episodios.length === 0 ? (
+          <p>Este paciente aún no tiene tratamientos registrados.</p>
+        ) : (
+          /* Si sí hay episodios, React usa el map para dibujar cada tarjeta */
+          <div style={styles.listaEpisodios}>
             
-            {/* SELECTOR DE ESTADO INTERACTIVO */}
-            <select
-              value={episodio.estado || "en curso"}
-              onChange={(e) => handleCambioConGracia(e.target.value)}
-              style={{ ...styles.badgeSelect, background: badgeColor(episodio.estado) }}
-            >
-              <option value="en curso">En curso</option>
-              <option value="alta">Alta médica</option>
-              <option value="abandono">Abandono</option>
-            </select>
-            
-            {role !== "admin" && (
-               <button 
-                 style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "1.2rem" }} 
-                 onClick={handleEliminarEpisodio}
-                 title="Eliminar episodio"
-               >
-                 🗑️
-               </button>
-            )}
-          </div>
-        </div>
+            {episodios.map((ep) => (
+              
+              /* ESTA ES LA TARJETA INDIVIDUAL DE CADA EPISODIO */
+              <div key={ep.id} style={styles.episodioCard} onClick={() => irAlDetalle(ep.id)}>
+                
+                {/* Lado izquierdo de la tarjeta: Info del episodio */}
+                <div style={styles.cardLeft}>
+                  <h4>{ep.motivoConsulta}</h4>
+                  <p>Inició: {ep.fechaInicio}</p>
+                </div>
 
-        {/* AVISO DE DESHACER (Solo aparece durante la hora de gracia) */}
-        {cambioPendiente && (
-          <div style={styles.undoBanner}>
-            <span>El estado se registrará como <b>"{episodio.estado}"</b> en 1 hora.</span>
-            <button onClick={cancelarCambio} style={styles.btnUndo}>Deshacer</button>
-          </div>
-        )}
+                {/* Lado derecho de la tarjeta: El selector de estado */}
+                <div style={styles.cardRight}>
+                  
+                  {/* Aviso de guardado (opcional) */}
+                  {episodiosPendientes[ep.id] && <span>⏳ Guardando...</span>}
 
-        {/* Dashboard: Gráfica y Stats */}
-          <div style={styles.dashboardContainer}>
-            
-            <div style={styles.chartSection}>
-              <h3 style={styles.seccionTitulo}>Evolución del Dolor (EVA)</h3>
-              <div style={{ height: 250, marginTop: "1rem" }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart 
-                    data={[...sesiones].sort((a, b) => Number(a.numeroCita) - Number(b.numeroCita))} 
-                  > 
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="numeroCita" label={{ value: 'Sesión', position: 'insideBottomRight', offset: -5 }} />
-                    <YAxis domain={[0, 10]} />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="dolorInicio" stroke="#ef4444" name="Dolor Inicio" strokeWidth={2} dot={{ r: 4 }} />
-                    <Line type="monotone" dataKey="dolorFin" stroke="#22c55e" name="Dolor Fin" strokeWidth={2} dot={{ r: 4 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div style={styles.statsGrid}>
-              <div style={styles.statCard}>
-                <span style={{...styles.statNum, color: "#1e293b"}}>{sesiones.length}</span>
-                <span style={styles.statLabel}>Sesiones totales</span>
-              </div>
-              <div style={styles.statCard}>
-                <span style={{...styles.statNum, color: "#22c55e"}}>{sesiones.filter(s => s.asistio).length}</span>
-                <span style={styles.statLabel}>Asistidas</span>
-              </div>
-              <div style={styles.statCard}>
-                <span style={{...styles.statNum, color: "#ef4444"}}>{sesiones.filter(s => !s.asistio).length}</span>
-                <span style={styles.statLabel}>Faltas</span>
-              </div>
-              <div style={styles.statCard}>
-                <span style={{...styles.statNum, color: "#2563eb"}}>{promedioMejora !== null ? promedioMejora + "%" : "—"}</span>
-                <span style={styles.statLabel}>Sesiones con mejora</span>
-              </div>
-            </div>
-
-          </div>
-
-        {/* Sesiones */}
-        <div style={styles.seccion}>
-          <div style={styles.seccionHeader}>
-            <h3 style={styles.seccionTitulo}>Sesiones</h3>
-            {role !== "admin" && (
-              <button style={styles.btnNuevo} onClick={() => navigate(`/pacientes/${id}/episodios/${epId}/nueva-sesion`)}>
-                + Nueva sesión
-              </button>
-            )}
-          </div>
-
-          {sesiones.length === 0 && <p style={styles.vacio}>No hay sesiones registradas</p>}
-
-          {sesiones.map((s, i) => (
-            <div key={s.id} style={styles.sesionCard} onClick={() => navigate(`/pacientes/${id}/episodios/${epId}/sesiones/${s.id}`)}>
-              <div style={styles.sesionLeft}>
-                <span style={styles.sesionNum}>#{sesiones.length - i}</span>
-                <div>
-                  <p style={styles.sesionFecha}>{s.fecha} · {s.hora}</p>
-                  <p style={styles.sesionDetalle}>
-                    {s.asistio ? `Dolor: ${s.dolorInicio}→${s.dolorFin} · ${s.mejoraRespecto}` : "⚠️ No asistió"}
-                  </p>
+                  {/* EL SELECTOR INTERACTIVO */}
+                  <select
+                    value={ep.estado || "en curso"}
+                    onClick={(e) => e.stopPropagation()} // Esto evita que al hacer clic en el select, entres al episodio por accidente
+                    onChange={(e) => handleCambioEstadoEpisodio(ep.id, e.target.value, ep.estado)}
+                    style={{ ...styles.badgeSelect, background: badgeColor(ep.estado) }}
+                  >
+                    <option value="en curso">En curso</option>
+                    <option value="alta">Alta</option>
+                    <option value="abandono">Abandono</option>
+                  </select>
+                  
                 </div>
               </div>
-              <div style={styles.sesionRight}>
-                {s.tecnicasAplicadas?.slice(0, 2).map(t => (
-                  <span key={t} style={styles.tecnicaChip}>{t}</span>
-                ))}
-                <span style={styles.flecha}>›</span>
-              </div>
-            </div>
-          ))}
-        </div>
+              /* FIN DE LA TARJETA INDIVIDUAL */
+
+            ))}
+
+          </div>
+        )}
       </div>
+
     </div>
-  );
+  </div>
+);
 }
 
 function badgeColor(estado) {

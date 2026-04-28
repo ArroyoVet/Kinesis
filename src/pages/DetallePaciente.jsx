@@ -13,6 +13,8 @@ export default function DetallePaciente() {
   const [paciente, setPaciente] = useState(null);
   const [episodios, setEpisodios] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [timerIds, setTimerIds] = useState({});
+  const [episodiosPendientes, setEpisodiosPendientes] = useState({});
 
   useEffect(() => {
     async function cargar() {
@@ -29,6 +31,46 @@ export default function DetallePaciente() {
     }
     cargar();
   }, [id]);
+
+function handleCambioEstadoEpisodio(episodioId, nuevoEstado, estadoActual) {
+    if (nuevoEstado === estadoActual) return;
+
+    // 1. Actualización Optimista en la UI
+    setEpisodios(prev => prev.map(ep => 
+      ep.id === episodioId ? { ...ep, estado: nuevoEstado } : ep
+    ));
+    setEpisodiosPendientes(prev => ({ ...prev, [episodioId]: true }));
+
+    // Limpiamos el timer si ya existía uno para este episodio
+    if (timerIds[episodioId]) clearTimeout(timerIds[episodioId]);
+
+    // 2. Temporizador de 1 minuto (60000 ms)
+    const newTimer = setTimeout(async () => {
+      try {
+        const fechaRegistro = new Date().toISOString();
+        
+        // A. Actualizamos el Episodio
+        const epRef = doc(db, "patients", id, "episodes", episodioId);
+        await updateDoc(epRef, {
+          estado: nuevoEstado,
+          fecha_registro_estado: fechaRegistro
+        });
+
+        // B. Sincronizamos el Paciente (Para que la lista general Pacientes.jsx se actualice)
+        const pacRef = doc(db, "patients", id);
+        await updateDoc(pacRef, {
+          estado: nuevoEstado,
+          fecha_registro_estado: fechaRegistro
+        });
+
+        setEpisodiosPendientes(prev => ({ ...prev, [episodioId]: false }));
+      } catch (e) {
+        console.error("Error guardando el estado definitivo:", e);
+      }
+    }, 60000); 
+
+    setTimerIds(prev => ({ ...prev, [episodioId]: newTimer }));
+  }
 
   function calcularEdad(fechaNacimiento) {
     if (!fechaNacimiento) return "—";
