@@ -108,7 +108,6 @@ export default function Home() {
   );
 }
 
-// Estilos actualizados para incluir los nuevos elementos
 const styles = {
   container: {
     padding: "2rem",
@@ -116,83 +115,57 @@ const styles = {
     margin: "0 auto",
   },
   welcome: {
-    fontSize: "1.75rem",
+    fontSize: "1.5rem",
+    fontWeight: "500",
     color: "#1e293b",
     marginBottom: "0.25rem",
   },
   info: {
     color: "#64748b",
-    margin: "0.25rem 0",
+    margin: "0.2rem 0",
+    fontSize: "0.875rem",
   },
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
     gap: "1rem",
     marginTop: "2rem",
   },
   card: {
     background: "white",
-    borderRadius: "1rem",
-    padding: "1.5rem",
-    boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+    borderRadius: "12px",
+    padding: "1.25rem",
+    border: "1.5px solid #185FA5",
     cursor: "pointer",
     textAlign: "center",
-    border: "2px solid #2563eb",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "0.6rem",
   },
   cardAdd: {
     background: "white",
-    borderRadius: "1rem",
-    padding: "1.5rem",
-    boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+    borderRadius: "12px",
+    padding: "1.25rem",
+    border: "0.5px dashed #cbd5e1",
     cursor: "pointer",
     textAlign: "center",
-    border: "2px dashed #cbd5e1",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "0.6rem",
     color: "#94a3b8",
   },
   cardIcon: {
-    fontSize: "2rem",
+    fontSize: "1.75rem",
   },
-  // Nuevos estilos para el mini-formulario
-  cardInputContainer: {
-    background: "white",
-    borderRadius: "1rem",
-    padding: "1.5rem",
-    boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.8rem",
-    border: "2px solid #cbd5e1",
+  cardNombre: {
+    fontWeight: "500",
+    fontSize: "0.95rem",
+    color: "#1e293b",
   },
-  input: {
-    padding: "0.5rem",
-    borderRadius: "0.5rem",
-    border: "1px solid #cbd5e1",
-    fontSize: "1rem",
-    width: "100%",
-    boxSizing: "border-box"
-  },
-  buttonGroup: {
-    display: "flex",
-    gap: "0.5rem",
-    justifyContent: "space-between"
-  },
-  btnSave: {
-    background: "#2563eb",
-    color: "white",
-    border: "none",
-    padding: "0.5rem 1rem",
-    borderRadius: "0.5rem",
-    cursor: "pointer",
-    fontWeight: "bold",
-    flex: 1
-  },
-  btnCancel: {
-    background: "#f1f5f9",
+  cardDesc: {
+    fontSize: "0.8rem",
     color: "#64748b",
-    border: "none",
-    padding: "0.5rem 1rem",
-    borderRadius: "0.5rem",
-    cursor: "pointer",
-    flex: 1
-  }
+  },
 };
