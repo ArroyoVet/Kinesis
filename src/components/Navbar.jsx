@@ -20,7 +20,7 @@ export default function Navbar() {
 
   return (
     <nav style={styles.nav}>
-      <span style={styles.logo}>PhysioTrack</span>
+      <span style={styles.logo}>Kinesis</span>
       <div style={styles.links}>
         {links.map(link => (
           <button

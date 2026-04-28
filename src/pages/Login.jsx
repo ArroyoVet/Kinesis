@@ -34,7 +34,7 @@ export default function Login() {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <h1 style={styles.title}>PhysioTrack</h1>
+        <h1 style={styles.title}>Kinesis</h1>
         <p style={styles.subtitle}>Gestión de pacientes</p>
 
         <form onSubmit={handleEmail} style={styles.form}>
