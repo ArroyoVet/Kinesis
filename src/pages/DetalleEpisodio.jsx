@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { db } from "../firebase/config";
-import { doc, getDoc, collection, getDocs, orderBy, query, deleteDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc, collection, getDocs, orderBy, query, deleteDoc } from "firebase/firestore";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
@@ -16,6 +16,11 @@ export default function DetalleEpisodio() {
   const [sesiones, setSesiones] = useState([]);
   const [paciente, setPaciente] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Estados para la ventana de gracia del cambio de estado
+  const [timerId, setTimerId] = useState(null);
+  const [estadoOriginal, setEstadoOriginal] = useState(null);
+  const [cambioPendiente, setCambioPendiente] = useState(false);
 
   useEffect(() => {
     async function cargar() {
@@ -34,15 +39,67 @@ export default function DetalleEpisodio() {
     cargar();
   }, [id, epId]);
 
+  // Limpiar el timer si el componente se desmonta para evitar fugas de memoria
+  useEffect(() => {
+    return () => {
+      if (timerId) clearTimeout(timerId);
+    };
+  }, [timerId]);
+
   async function handleEliminarEpisodio() {
     if (window.confirm("¿Estás seguro de eliminar este episodio de tratamiento?")) {
       try {
         await deleteDoc(doc(db, "patients", id, "episodes", epId));
-        navigate(`/pacientes/${id}`); // Lo regresamos al perfil del paciente
+        navigate(`/pacientes/${id}`);
       } catch (error) {
         alert("Error al eliminar: " + error.message);
       }
     }
+  }
+
+  // Lógica de cambio de estado con ventana de gracia
+  function handleCambioConGracia(nuevoEstado) {
+    if (nuevoEstado === episodio.estado) return;
+
+    // Guardamos el estado original por si quiere deshacer
+    if (!cambioPendiente) {
+      setEstadoOriginal(episodio.estado);
+    }
+
+    // Actualización visual inmediata
+    setEpisodio(prev => ({ ...prev, estado: nuevoEstado }));
+    setCambioPendiente(true);
+
+    // Limpiamos cualquier temporizador anterior
+    if (timerId) clearTimeout(timerId);
+
+    // Creamos el nuevo temporizador de 10 minutos (600000 ms)
+    // Nota para pruebas: puedes cambiar 600000 por 5000 (5 segundos) para probar que se guarda en Firebase.
+    const newTimer = setTimeout(async () => {
+      try {
+        const epRef = doc(db, "patients", id, "episodes", epId);
+        const fechaRegistro = new Date().toISOString();
+        
+        await updateDoc(epRef, {
+          estado: nuevoEstado,
+          fecha_registro_estado: fechaRegistro
+        });
+        
+        setCambioPendiente(false);
+        setEstadoOriginal(null);
+      } catch (e) {
+        console.error("Error guardando el estado definitivo:", e);
+      }
+    }, 600000); 
+
+    setTimerId(newTimer);
+  }
+
+  function cancelarCambio() {
+    if (timerId) clearTimeout(timerId);
+    setEpisodio(prev => ({ ...prev, estado: estadoOriginal || "en curso" }));
+    setCambioPendiente(false);
+    setEstadoOriginal(null);
   }
 
   if (loading) return <div style={styles.loading}>Cargando...</div>;
@@ -69,11 +126,18 @@ export default function DetalleEpisodio() {
           </div>
           
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "1rem" }}>
-            <span style={{ ...styles.badge, background: badgeColor(episodio.estado) }}>
-              {episodio.estado}
-            </span>
             
-            {/* Botón de eliminar episodio */}
+            {/* SELECTOR DE ESTADO INTERACTIVO */}
+            <select
+              value={episodio.estado || "en curso"}
+              onChange={(e) => handleCambioConGracia(e.target.value)}
+              style={{ ...styles.badgeSelect, background: badgeColor(episodio.estado) }}
+            >
+              <option value="en curso">En curso</option>
+              <option value="alta">Alta médica</option>
+              <option value="abandono">Abandono</option>
+            </select>
+            
             {role !== "admin" && (
                <button 
                  style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "1.2rem" }} 
@@ -86,10 +150,17 @@ export default function DetalleEpisodio() {
           </div>
         </div>
 
+        {/* AVISO DE DESHACER (Solo aparece durante la hora de gracia) */}
+        {cambioPendiente && (
+          <div style={styles.undoBanner}>
+            <span>El estado se registrará como <b>"{episodio.estado}"</b> en 1 hora.</span>
+            <button onClick={cancelarCambio} style={styles.btnUndo}>Deshacer</button>
+          </div>
+        )}
+
         {/* Dashboard: Gráfica y Stats */}
           <div style={styles.dashboardContainer}>
             
-            {/* Sección 1: Gráfica sola ocupando todo el ancho */}
             <div style={styles.chartSection}>
               <h3 style={styles.seccionTitulo}>Evolución del Dolor (EVA)</h3>
               <div style={{ height: 250, marginTop: "1rem" }}>
@@ -102,28 +173,13 @@ export default function DetalleEpisodio() {
                     <YAxis domain={[0, 10]} />
                     <Tooltip />
                     <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="dolorInicio" 
-                      stroke="#ef4444" 
-                      name="Dolor Inicio" 
-                      strokeWidth={2}
-                      dot={{ r: 4 }} 
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="dolorFin" 
-                      stroke="#22c55e" 
-                      name="Dolor Fin" 
-                      strokeWidth={2}
-                      dot={{ r: 4 }} 
-                    />
+                    <Line type="monotone" dataKey="dolorInicio" stroke="#ef4444" name="Dolor Inicio" strokeWidth={2} dot={{ r: 4 }} />
+                    <Line type="monotone" dataKey="dolorFin" stroke="#22c55e" name="Dolor Fin" strokeWidth={2} dot={{ r: 4 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            {/* Sección 2: Tarjetas 2x2 */}
             <div style={styles.statsGrid}>
               <div style={styles.statCard}>
                 <span style={{...styles.statNum, color: "#1e293b"}}>{sesiones.length}</span>
@@ -146,16 +202,11 @@ export default function DetalleEpisodio() {
           </div>
 
         {/* Sesiones */}
-            <div style={styles.seccion}>
+        <div style={styles.seccion}>
           <div style={styles.seccionHeader}>
             <h3 style={styles.seccionTitulo}>Sesiones</h3>
-            
-            {/* Solo se muestra si el usuario NO es un administrador */}
             {role !== "admin" && (
-              <button
-                style={styles.btnNuevo}
-                onClick={() => navigate(`/pacientes/${id}/episodios/${epId}/nueva-sesion`)}
-              >
+              <button style={styles.btnNuevo} onClick={() => navigate(`/pacientes/${id}/episodios/${epId}/nueva-sesion`)}>
                 + Nueva sesión
               </button>
             )}
@@ -164,11 +215,7 @@ export default function DetalleEpisodio() {
           {sesiones.length === 0 && <p style={styles.vacio}>No hay sesiones registradas</p>}
 
           {sesiones.map((s, i) => (
-            <div
-              key={s.id}
-              style={styles.sesionCard}
-              onClick={() => navigate(`/pacientes/${id}/episodios/${epId}/sesiones/${s.id}`)}
-            >
+            <div key={s.id} style={styles.sesionCard} onClick={() => navigate(`/pacientes/${id}/episodios/${epId}/sesiones/${s.id}`)}>
               <div style={styles.sesionLeft}>
                 <span style={styles.sesionNum}>#{sesiones.length - i}</span>
                 <div>
@@ -195,7 +242,7 @@ export default function DetalleEpisodio() {
 function badgeColor(estado) {
   if (estado === "alta") return "#22c55e";
   if (estado === "abandono") return "#ef4444";
-  return "#2563eb";
+  return "#2563eb"; // en curso
 }
 
 const styles = {
@@ -206,17 +253,18 @@ const styles = {
   colorDot: { width: "14px", height: "14px", borderRadius: "50%", flexShrink: 0 },
   titulo: { margin: 0, fontSize: "1.2rem", color: "#1e293b" },
   subinfo: { margin: 0, color: "#64748b", fontSize: "0.82rem" },
-  badge: { marginLeft: "auto", padding: "0.25rem 0.65rem", borderRadius: "999px", color: "white", fontSize: "0.75rem", fontWeight: "600", whiteSpace: "nowrap" },
   
-  // Novedades para el Dashboard (Gráfica + Tarjetas)
+  // Nuevos estilos para el Selector y el Banner de Deshacer
+  badgeSelect: { padding: "0.25rem 0.65rem", borderRadius: "999px", color: "white", fontSize: "0.75rem", fontWeight: "600", border: "none", outline: "none", cursor: "pointer", appearance: "none", textAlign: "center" },
+  undoBanner: { background: "#fffbeb", color: "#b45309", padding: "0.75rem 1rem", borderRadius: "0.75rem", marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", border: "1px solid #fde68a" },
+  btnUndo: { background: "#b45309", color: "white", border: "none", padding: "0.4rem 0.8rem", borderRadius: "0.5rem", cursor: "pointer", fontSize: "0.75rem", fontWeight: "bold" },
+  
   dashboardContainer: { display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1rem" },
   chartSection: { background: "white", borderRadius: "1rem", padding: "1rem", border: "0.5px solid #e2e8f0", width: "100%", boxSizing: "border-box" },
   statsGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "0.65rem", width: "100%" },
   statCard: { background: "white", borderRadius: "0.75rem", padding: "0.85rem", border: "0.5px solid #e2e8f0", textAlign: "center", display: "flex", flexDirection: "column", gap: "0.2rem" },
   statNum: { fontSize: "1.5rem", fontWeight: "700", color: "#185FA5" },
   statLabel: { fontSize: "0.75rem", color: "#64748b" },
-  
-  // Sesiones
   seccion: { background: "white", borderRadius: "1rem", padding: "1rem", border: "0.5px solid #e2e8f0" },
   seccionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" },
   seccionTitulo: { margin: 0, color: "#1e293b", fontSize: "1rem" },
