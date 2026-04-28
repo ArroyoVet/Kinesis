@@ -144,7 +144,7 @@ export default function Reportes() {
 }
 
 const styles = {
-  container: { padding: "0.75rem 1rem", maxWidth: "1100px", margin: "0 auto" },
+  container: { padding: "0.75rem 1rem", maxWidth: "900px", margin: "0 auto" },
   titulo: { fontSize: "1.75rem", color: "#1e293b", marginBottom: "1.5rem" },
   loading: { textAlign: "center", padding: "3rem", color: "#64748b" },
   statsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem", marginBottom: "1.5rem" },
