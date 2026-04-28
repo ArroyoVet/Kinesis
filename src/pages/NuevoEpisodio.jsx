@@ -1,78 +1,96 @@
 import { useState } from "react";
 import { db } from "../firebase/config";
-import { collection, addDoc, doc, updateDoc } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
 import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
-import { useAuth } from "../context/AuthContext"; // <-- 1. Importamos el contexto
+import { useAuth } from "../context/AuthContext";
 
-const MOTIVOS = ["Lumbalgia", "Hemiplejia", "Fascitis", "Cervicalgia", "Escoliosis", "Tendinitis", "Fractura", "Otro"];
+// 1. EL DICCIONARIO
+const DIAGNOSTICOS = {
+  "Lumbalgia": "M54.5",
+  "Hemiplejia": "G81.9",
+  "Fascitis plantar": "M72.2",
+  "Cervicalgia": "M53.0",
+  "Escoliosis": "M41.9",
+  "Tendinitis": "M77.9",
+  "Fractura": "T14.2",
+  "Otro": "" 
+};
+
 const COLORES = ["#2563eb", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
 
 export default function NuevoEpisodio() {
-  const { id } = useParams();
+  const { id } = useParams(); // Obtenemos el ID del paciente de la URL
   const navigate = useNavigate();
-  const { user } = useAuth(); // <-- 2. Obtenemos el usuario logueado
-  const DIAGNOSTICOS = {
-    "Lumbalgia": "M54.5",
-    "Hemiplejia": "G81.9",
-    "Fascitis plantar": "M72.2",
-    "Cervicalgia": "M53.0",
-    "Escoliosis": "M41.9",
-    "Tendinitis": "M77.9",
-    "Fractura": "T14.2",
-    "Otro": "" // Lo dejamos vacío para que lo llene manualmente
-  };
-  const [form, setForm] = useState({
-    motivoConsulta: "",
-    diagnosticoCIE10: "",
-    color: "#2563eb",
-    fechaInicio: new Date().toISOString().split("T")[0],
-    fechaAlta: null,
-    estado: "en curso",
-    derivadoPor: "",
-    seguro: "SIS",
-    totalSesiones: 0,
-    observacionesGenerales: "",
-    motivoPersonalizado: "",
-  });
+  const { user } = useAuth();
   const [guardando, setGuardando] = useState(false);
 
+  const [form, setForm] = useState({
+    motivoConsulta: "",
+    motivoPersonalizado: "", // Para cuando elige "Otro"
+    diagnosticoCIE10: "",
+    color: "#2563eb",
+  });
+
+  // Función genérica para textos normales
+  function handleChange(e) {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  }
+
+  // 2. LA MAGIA DEL AUTO-COMPLETADO
   function handleMotivoChange(e) {
     const motivoSeleccionado = e.target.value;
     setForm({ 
       ...form, 
       motivoConsulta: motivoSeleccionado,
-      // Busca en el diccionario. Si existe, pone el código. Si no, lo deja en blanco.
+      // Busca el código en el diccionario. Si no está, lo deja en blanco
       diagnosticoCIE10: DIAGNOSTICOS[motivoSeleccionado] || "",
-      motivoPersonalizado: "" // Limpiamos el campo "otro" si cambia de opinión
+      motivoPersonalizado: "" // Limpia el campo "otro"
     });
   }
 
-  function handleChange(e) {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  }
-
   async function handleGuardar() {
-    if (!form.motivoConsulta) return alert("El motivo de consulta es obligatorio");
+    // Definir cuál es el motivo real a guardar
+    const motivoFinal = form.motivoConsulta === "Otro" 
+      ? form.motivoPersonalizado 
+      : form.motivoConsulta;
+
+    if (!motivoFinal) return alert("El motivo de consulta es obligatorio");
+
     setGuardando(true);
     try {
+      const fechaActual = new Date().toISOString();
+      const fechaSoloDia = fechaActual.split("T")[0]; // Ej: "2026-04-28"
+
+      // A. Crear el nuevo episodio en la subcolección
       await addDoc(collection(db, "patients", id, "episodes"), {
-        ...form,
-        userId: user.uid, // <-- 3. PRIVACIDAD: Asociamos el episodio al licenciado
-        creadoEn: new Date().toISOString(),
+        motivoConsulta: motivoFinal,
+        diagnosticoCIE10: form.diagnosticoCIE10,
+        color: form.color,
+        estado: "en curso", // Nace en curso
+        fechaInicio: fechaSoloDia,
+        userId: user.uid,
+        creadoEn: fechaActual,
+        fecha_registro_estado: fechaActual
       });
-      // Actualizar estado y color del paciente
+
+      // B. LA REGLA DE ORO: Sincronizar y revivir al paciente globalmente
       await updateDoc(doc(db, "patients", id), {
-          estado: "en curso",
-          color: form.color,
-          motivoConsulta: form.motivoConsulta,
-          fecha_registro_estado: new Date().toISOString(), // <-- Para que el reporte sepa cuándo inició este nuevo ciclo
-        });
+        estado: "en curso",
+        color: form.color,
+        motivoConsulta: motivoFinal,
+        diagnosticoCIE10: form.diagnosticoCIE10, // Actualizamos el diagnóstico en su ficha principal
+        fechaDiagnostico: fechaSoloDia,         // Actualizamos la fecha de diagnóstico
+        fecha_registro_estado: fechaActual
+      });
+
+      // Regresamos al perfil del paciente
       navigate(`/pacientes/${id}`);
     } catch (err) {
       alert("Error al guardar: " + err.message);
+    } finally {
+      setGuardando(false);
     }
-    setGuardando(false);
   }
 
   return (
@@ -81,17 +99,20 @@ export default function NuevoEpisodio() {
       <div style={styles.container}>
         <div style={styles.header}>
           <button style={styles.btnVolver} onClick={() => navigate(`/pacientes/${id}`)}>← Volver</button>
-          <h2 style={styles.titulo}>Nuevo Episodio</h2>
+          <h2 style={styles.titulo}>Nuevo Tratamiento</h2>
         </div>
 
         <div style={styles.form}>
+          
+          {/* Selector de Motivo con onChange especial (handleMotivoChange) */}
           <label style={styles.label}>Motivo de consulta *</label>
-          <select style={styles.input} name="motivoConsulta" value={form.motivoConsulta} onChange={handleChange}>
+          <select style={styles.input} name="motivoConsulta" value={form.motivoConsulta} onChange={handleMotivoChange}>
             <option value="">Seleccionar</option>
-            {MOTIVOS.map(m => <option key={m} value={m}>{m}</option>)}
+            {Object.keys(DIAGNOSTICOS).map(m => <option key={m} value={m}>{m}</option>)}
           </select>
 
-            {form.motivoConsulta === "Otro" && (
+          {/* Campo que aparece solo si elige "Otro" */}
+          {form.motivoConsulta === "Otro" && (
             <input 
               style={{ ...styles.input, marginTop: "0.5rem", border: "1px solid #3b82f6" }} 
               name="motivoPersonalizado" 
@@ -101,6 +122,7 @@ export default function NuevoEpisodio() {
             />
           )}
 
+          {/* Código CIE-10 (Se llena solo pero permite edición) */}
           <label style={styles.label}>Diagnóstico CIE-10</label>
           <input 
             style={{ ...styles.input, backgroundColor: form.motivoConsulta && form.motivoConsulta !== "Otro" ? "#f1f5f9" : "white" }} 
@@ -108,28 +130,6 @@ export default function NuevoEpisodio() {
             value={form.diagnosticoCIE10} 
             onChange={handleChange} 
             placeholder="Ej: M54.5" 
-          />
-
-          <label style={styles.label}>Fecha de inicio</label>
-          <input style={styles.input} type="date" name="fechaInicio" value={form.fechaInicio} onChange={handleChange} />
-
-          <label style={styles.label}>Derivado por</label>
-          <input style={styles.input} name="derivadoPor" value={form.derivadoPor} onChange={handleChange} placeholder="Ej: Dr. Ramos" />
-
-          <label style={styles.label}>Seguro</label>
-          <select style={styles.input} name="seguro" value={form.seguro} onChange={handleChange}>
-            <option value="SIS">SIS</option>
-            <option value="EsSalud">EsSalud</option>
-            <option value="Particular">Particular</option>
-          </select>
-
-          <label style={styles.label}>Observaciones generales</label>
-          <textarea
-            style={{ ...styles.input, minHeight: "80px", resize: "vertical" }}
-            name="observacionesGenerales"
-            value={form.observacionesGenerales}
-            onChange={handleChange}
-            placeholder="Notas generales del episodio..."
           />
 
           <label style={styles.label}>Color en agenda</label>
@@ -148,7 +148,7 @@ export default function NuevoEpisodio() {
           </div>
 
           <button style={styles.btnGuardar} onClick={handleGuardar} disabled={guardando}>
-            {guardando ? "Guardando..." : "Guardar episodio"}
+            {guardando ? "Iniciando tratamiento..." : "Iniciar tratamiento"}
           </button>
         </div>
       </div>
