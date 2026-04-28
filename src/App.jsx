@@ -15,7 +15,8 @@ import NuevaCita from "./pages/NuevaCita";
 import EditarPaciente from "./pages/EditarPaciente";
 
 function PrivateRoute({ children }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) return null;
   return user ? children : <Navigate to="/login" />;
 }
 
