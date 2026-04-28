@@ -89,35 +89,37 @@ export default function DetalleEpisodio() {
         {/* Stats automáticos */}
         <div style={styles.statsGrid}>
                     <div style={styles.chartContainer}>
-            <h3 style={styles.seccionTitulo}>Evolución del Dolor (EVA)</h3>
-            <div style={{ height: 250, marginTop: "1rem" }}>
-                <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={[...sesiones].reverse()}> {/* Invertimos para que el tiempo vaya de izquierda a derecha */}
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="numeroCita" label={{ value: 'Sesión', position: 'insideBottomRight', offset: -5 }} />
-                    <YAxis domain={[0, 10]} />
-                    <Tooltip />
-                    <Legend />
-                    <Line 
-                    type="monotone" 
-                    dataKey="dolorInicio" 
-                    stroke="#ef4444" 
-                    name="Dolor Inicio" 
-                    strokeWidth={2}
-                    dot={{ r: 4 }} 
-                    />
-                    <Line 
-                    type="monotone" 
-                    dataKey="dolorFin" 
-                    stroke="#22c55e" 
-                    name="Dolor Fin" 
-                    strokeWidth={2}
-                    dot={{ r: 4 }} 
-                    />
-                </LineChart>
-                </ResponsiveContainer>
-            </div>
-            </div>
+                  <h3 style={styles.seccionTitulo}>Evolución del Dolor (EVA)</h3>
+                  <div style={{ height: 250, marginTop: "1rem" }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart 
+                        data={[...sesiones].sort((a, b) => Number(a.numeroCita) - Number(b.numeroCita))} 
+                      > 
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="numeroCita" label={{ value: 'Sesión', position: 'insideBottomRight', offset: -5 }} />
+                        <YAxis domain={[0, 10]} />
+                        <Tooltip />
+                        <Legend />
+                        <Line 
+                          type="monotone" 
+                          dataKey="dolorInicio" 
+                          stroke="#ef4444" 
+                          name="Dolor Inicio" 
+                          strokeWidth={2}
+                          dot={{ r: 4 }} 
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="dolorFin" 
+                          stroke="#22c55e" 
+                          name="Dolor Fin" 
+                          strokeWidth={2}
+                          dot={{ r: 4 }} 
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
           <div style={styles.statCard}>
             <span style={styles.statNum}>{sesiones.length}</span>
             <span style={styles.statLabel}>Sesiones totales</span>
