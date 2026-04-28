@@ -4,6 +4,9 @@ import { collection, query, where, getDocs, doc, updateDoc } from "firebase/fire
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
+const esMobil = window.innerWidth < 768;
+const diasAMostrar = esMobil ? 5 : 7;
+
 const HORAS = [
   "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
   "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30",
@@ -24,7 +27,7 @@ export default function VistaSemanal({ fecha }) {
   const lunes = new Date(d.setDate(diff));
   lunes.setHours(0, 0, 0, 0);
 
-  const diasFecha = Array.from({ length: 7 }, (_, i) => {
+  const diasFecha = Array.from({ length: diasAMostrar }, (_, i) => {
     const next = new Date(lunes);
     next.setDate(lunes.getDate() + i);
     return next;
@@ -226,13 +229,29 @@ function estadoColor(estado) {
 
 const styles = {
   wrapper: { position: "relative" },
-  tabla: { background: "white", borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)", overflow: "hidden" },
-  headerRow: { display: "grid", gridTemplateColumns: "70px repeat(7, 1fr)", borderBottom: "1px solid #e2e8f0", background: "#f8fafc" },
+  tabla: { 
+  background: "white", 
+  borderRadius: "12px", 
+  boxShadow: "0 4px 12px rgba(0,0,0,0.05)", 
+  overflow: "auto",
+  WebkitOverflowScrolling: "touch",
+},
+  headerRow: { 
+  display: "grid", 
+  gridTemplateColumns: `70px repeat(${esMobil ? 5 : 7}, 1fr)`, 
+  borderBottom: "1px solid #e2e8f0", 
+  background: "#f8fafc" 
+},
   horaHeader: {},
   diaHeader: { padding: "10px", textAlign: "center", display: "flex", flexDirection: "column", gap: "4px", borderLeft: "1px solid #e2e8f0" },
   diaNombre: { fontSize: "0.7rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase" },
   diaNum: { fontSize: "1rem", fontWeight: "700", width: "30px", height: "30px", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto", borderRadius: "50%" },
-  row: { display: "grid", gridTemplateColumns: "70px repeat(7, 1fr)", borderBottom: "1px solid #f1f5f9", minHeight: "45px" },
+  row: { 
+  display: "grid", 
+  gridTemplateColumns: `70px repeat(${esMobil ? 5 : 7}, 1fr)`, 
+  borderBottom: "1px solid #f1f5f9", 
+  minHeight: "45px" 
+},
   horaCell: { fontSize: "0.7rem", color: "#94a3b8", display: "flex", alignItems: "center", justifyContent: "center", borderRight: "1px solid #f1f5f9", fontWeight: "600" },
   cell: { borderLeft: "1px solid #f1f5f9", padding: "4px", position: "relative" },
   citaCard: { height: "100%", borderRadius: "6px", padding: "4px 8px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" },
