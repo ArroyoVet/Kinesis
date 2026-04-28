@@ -107,8 +107,16 @@ export default function DetallePaciente() {
 
           <div style={styles.datosGrid}>
             <div style={styles.dato}>
-              <span style={styles.datoLabel}>Celular</span>
-              <span style={styles.datoValor}>{paciente.celular || "—"}</span>
+              <span style={styles.datoLabel}>Diagnóstico</span>
+              <span style={styles.datoValor}>
+                {paciente.diagnosticoCIE10 ? `${paciente.diagnosticoCIE10}` : "—"}
+              </span>
+              {/* Fecha en pequeñito debajo del código */}
+              {paciente.fechaDiagnostico && (
+                <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
+                  {paciente.fechaDiagnostico}
+                </span>
+              )}
             </div>
             <div style={styles.dato}>
               <span style={styles.datoLabel}>Fecha de nacimiento</span>

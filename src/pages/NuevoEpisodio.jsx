@@ -12,7 +12,16 @@ export default function NuevoEpisodio() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth(); // <-- 2. Obtenemos el usuario logueado
-
+  const DIAGNOSTICOS = {
+    "Lumbalgia": "M54.5",
+    "Hemiplejia": "G81.9",
+    "Fascitis plantar": "M72.2",
+    "Cervicalgia": "M53.0",
+    "Escoliosis": "M41.9",
+    "Tendinitis": "M77.9",
+    "Fractura": "T14.2",
+    "Otro": "" // Lo dejamos vacío para que lo llene manualmente
+  };
   const [form, setForm] = useState({
     motivoConsulta: "",
     diagnosticoCIE10: "",
@@ -24,8 +33,20 @@ export default function NuevoEpisodio() {
     seguro: "SIS",
     totalSesiones: 0,
     observacionesGenerales: "",
+    motivoPersonalizado: "",
   });
   const [guardando, setGuardando] = useState(false);
+
+  function handleMotivoChange(e) {
+    const motivoSeleccionado = e.target.value;
+    setForm({ 
+      ...form, 
+      motivoConsulta: motivoSeleccionado,
+      // Busca en el diccionario. Si existe, pone el código. Si no, lo deja en blanco.
+      diagnosticoCIE10: DIAGNOSTICOS[motivoSeleccionado] || "",
+      motivoPersonalizado: "" // Limpiamos el campo "otro" si cambia de opinión
+    });
+  }
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -70,8 +91,24 @@ export default function NuevoEpisodio() {
             {MOTIVOS.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
 
+            {form.motivoConsulta === "Otro" && (
+            <input 
+              style={{ ...styles.input, marginTop: "0.5rem", border: "1px solid #3b82f6" }} 
+              name="motivoPersonalizado" 
+              value={form.motivoPersonalizado} 
+              onChange={handleChange} 
+              placeholder="Escriba la lesión o motivo..." 
+            />
+          )}
+
           <label style={styles.label}>Diagnóstico CIE-10</label>
-          <input style={styles.input} name="diagnosticoCIE10" value={form.diagnosticoCIE10} onChange={handleChange} placeholder="Ej: M54.5" />
+          <input 
+            style={{ ...styles.input, backgroundColor: form.motivoConsulta && form.motivoConsulta !== "Otro" ? "#f1f5f9" : "white" }} 
+            name="diagnosticoCIE10" 
+            value={form.diagnosticoCIE10} 
+            onChange={handleChange} 
+            placeholder="Ej: M54.5" 
+          />
 
           <label style={styles.label}>Fecha de inicio</label>
           <input style={styles.input} type="date" name="fechaInicio" value={form.fechaInicio} onChange={handleChange} />

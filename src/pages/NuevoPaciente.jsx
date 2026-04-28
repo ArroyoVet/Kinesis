@@ -5,7 +5,18 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
 
-const MOTIVOS = ["Lumbalgia", "Hemiplejia", "Fascitis", "Cervicalgia", "Escoliosis", "Tendinitis", "Fractura", "Otro"];
+// 1. EL DICCIONARIO MÁGICO: Relaciona la enfermedad con su CIE-10
+const DIAGNOSTICOS = {
+  "Lumbalgia": "M54.5",
+  "Hemiplejia": "G81.9",
+  "Fascitis plantar": "M72.2",
+  "Cervicalgia": "M53.0",
+  "Escoliosis": "M41.9",
+  "Tendinitis": "M77.9",
+  "Fractura": "T14.2",
+  "Otro": "" // Lo dejamos vacío para que lo llene manualmente
+};
+
 const COLORES = ["#2563eb", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
 
 export default function NuevoPaciente() {
@@ -15,20 +26,19 @@ export default function NuevoPaciente() {
   const [lugares, setLugares] = useState([]);
   const [guardando, setGuardando] = useState(false);
 
-  // El estado 'form' nace aquí
   const [form, setForm] = useState({
     nombre: "",
     celular: "",
     fechaNacimiento: "",
     sexo: "",
     motivoConsulta: "",
+    motivoPersonalizado: "", // <-- Nuevo estado para guardar el texto si elige "Otro"
     diagnosticoCIE10: "",
     color: "#2563eb",
-    workplaceId: "", // Vacío por defecto para obligar a seleccionar
+    workplaceId: "",
     estado: "en curso",
   });
 
-  // Cargamos los lugares del licenciado
   useEffect(() => {
     async function cargarLugares() {
       if (!user) return;
@@ -47,24 +57,70 @@ export default function NuevoPaciente() {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
-  // La función de guardar usa el 'form' correctamente aquí adentro
-  async function handleGuardar() {
-  if (!form.nombre) return alert("El nombre es obligatorio");
-
-  try {
-    await addDoc(collection(db, "patients"), {
-      ...form,
-      userId: user.uid,
-      creadoEn: new Date().toISOString(),
-      estado: "en curso" // Estado inicial por defecto
+  // 2. FUNCIÓN PARA AUTO-COMPLETAR EL CIE-10
+  function handleMotivoChange(e) {
+    const motivoSeleccionado = e.target.value;
+    setForm({ 
+      ...form, 
+      motivoConsulta: motivoSeleccionado,
+      // Busca en el diccionario. Si existe, pone el código. Si no, lo deja en blanco.
+      diagnosticoCIE10: DIAGNOSTICOS[motivoSeleccionado] || "",
+      motivoPersonalizado: "" // Limpiamos el campo "otro" si cambia de opinión
     });
-    
-    navigate("/pacientes");
-  } catch (error) {
-    console.error("Error al guardar:", error);
-    alert("Error al guardar el paciente");
   }
-}
+
+  async function handleGuardar() {
+    if (!form.nombre) return alert("El nombre es obligatorio");
+
+    // Decidimos qué motivo guardar finalmente
+    const motivoFinal = form.motivoConsulta === "Otro" 
+      ? form.motivoPersonalizado 
+      : form.motivoConsulta;
+
+    if (!motivoFinal) return alert("Por favor especifique el motivo de consulta");
+
+    setGuardando(true);
+    try {
+      const fechaActual = new Date().toISOString();
+      const fechaSoloDia = fechaActual.split("T")[0]; // Ej: "2026-04-28"
+
+      // Guardamos al paciente
+      const docRef = await addDoc(collection(db, "patients"), {
+        nombre: form.nombre,
+        celular: form.celular,
+        fechaNacimiento: form.fechaNacimiento,
+        sexo: form.sexo,
+        motivoConsulta: motivoFinal,
+        diagnosticoCIE10: form.diagnosticoCIE10,
+        fechaDiagnostico: fechaSoloDia, // <-- Guardamos la fecha de diagnóstico
+        color: form.color,
+        workplaceId: form.workplaceId,
+        estado: "en curso",
+        userId: user.uid,
+        creadoEn: fechaActual,
+        fecha_registro_estado: fechaActual
+      });
+
+      // Creamos automáticamente su primer episodio asociado a este motivo
+      await addDoc(collection(db, "patients", docRef.id, "episodes"), {
+        motivoConsulta: motivoFinal,
+        diagnosticoCIE10: form.diagnosticoCIE10,
+        fechaInicio: fechaSoloDia,
+        estado: "en curso",
+        color: form.color,
+        userId: user.uid,
+        creadoEn: fechaActual,
+        fecha_registro_estado: fechaActual
+      });
+      
+      navigate("/pacientes");
+    } catch (error) {
+      console.error("Error al guardar:", error);
+      alert("Error al guardar el paciente");
+    } finally {
+      setGuardando(false);
+    }
+  }
 
   return (
     <div>
@@ -79,7 +135,6 @@ export default function NuevoPaciente() {
           <label style={styles.label}>Nombre completo *</label>
           <input style={styles.input} name="nombre" value={form.nombre} onChange={handleChange} placeholder="Ej: María López" />
 
-          {/* Selector de Centro de Trabajo */}
           <label style={styles.label}>Centro de trabajo *</label>
           <select style={styles.input} name="workplaceId" value={form.workplaceId} onChange={handleChange}>
             <option value="">Seleccionar lugar...</option>
@@ -101,14 +156,33 @@ export default function NuevoPaciente() {
             <option value="M">Masculino</option>
           </select>
 
+          {/* Selector de Motivo con auto-completado */}
           <label style={styles.label}>Motivo de consulta</label>
-          <select style={styles.input} name="motivoConsulta" value={form.motivoConsulta} onChange={handleChange}>
+          <select style={styles.input} name="motivoConsulta" value={form.motivoConsulta} onChange={handleMotivoChange}>
             <option value="">Seleccionar</option>
-            {MOTIVOS.map(m => <option key={m} value={m}>{m}</option>)}
+            {Object.keys(DIAGNOSTICOS).map(m => <option key={m} value={m}>{m}</option>)}
           </select>
 
+          {/* CONDICIONAL: Aparece solo si elige "Otro" */}
+          {form.motivoConsulta === "Otro" && (
+            <input 
+              style={{ ...styles.input, marginTop: "0.5rem", border: "1px solid #3b82f6" }} 
+              name="motivoPersonalizado" 
+              value={form.motivoPersonalizado} 
+              onChange={handleChange} 
+              placeholder="Escriba la lesión o motivo..." 
+            />
+          )}
+
+          {/* El CIE-10 se llena solo, pero se puede editar manualmente */}
           <label style={styles.label}>Diagnóstico CIE-10</label>
-          <input style={styles.input} name="diagnosticoCIE10" value={form.diagnosticoCIE10} onChange={handleChange} placeholder="Ej: M54.5" />
+          <input 
+            style={{ ...styles.input, backgroundColor: form.motivoConsulta && form.motivoConsulta !== "Otro" ? "#f1f5f9" : "white" }} 
+            name="diagnosticoCIE10" 
+            value={form.diagnosticoCIE10} 
+            onChange={handleChange} 
+            placeholder="Ej: M54.5" 
+          />
 
           <label style={styles.label}>Color en agenda</label>
           <div style={styles.coloresGrid}>
