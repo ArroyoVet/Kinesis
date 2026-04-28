@@ -13,23 +13,23 @@ export default function Login() {
   const navigate = useNavigate();
 
   async function handleEmail(e) {
-    e.preventDefault();
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      navigate("/");
-    } catch {
-      setError("Correo o contraseña incorrectos");
-    }
+  e.preventDefault();
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    setTimeout(() => navigate("/"), 500);
+  } catch {
+    setError("Correo o contraseña incorrectos");
   }
+}
 
-  async function handleGoogle() {
-    try {
-      await signInWithPopup(auth, provider);
-      navigate("/");
-    } catch {
-      setError("Error al iniciar con Google");
-    }
+async function handleGoogle() {
+  try {
+    await signInWithPopup(auth, provider);
+    setTimeout(() => navigate("/"), 500);
+  } catch {
+    setError("Error al iniciar con Google");
   }
+}
 
   return (
     <div style={styles.container}>
