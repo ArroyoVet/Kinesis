@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 const esMobil = window.innerWidth < 768;
-const diasAMostrar = esMobil ? 5 : 7;
+const diasAMostrar = esMobil ? 7 : 7;
 
 const HORAS = [
   "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
@@ -248,7 +248,7 @@ const styles = {
   diaNum: { fontSize: "1rem", fontWeight: "700", width: "30px", height: "30px", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto", borderRadius: "50%" },
   row: { 
   display: "grid", 
-  gridTemplateColumns: `70px repeat(${esMobil ? 7 : 7}, 1fr)`, 
+  gridTemplateColumns: `70px repeat(${esMobil ? 6 : 7}, 1fr)`, 
   borderBottom: "1px solid #f1f5f9", 
   minHeight: "45px" 
 },
