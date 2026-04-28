@@ -58,7 +58,8 @@ export default function DetalleEpisodio() {
   }
 
   // Lógica de cambio de estado con ventana de gracia
-  function handleCambioConGracia(nuevoEstado) {
+  // 1. EL CAMBIO AHORA ES INMEDIATO EN FIREBASE
+  async function handleCambioConGracia(nuevoEstado) {
     if (nuevoEstado === episodio.estado) return;
 
     // Guardamos el estado original por si quiere deshacer
@@ -66,36 +67,55 @@ export default function DetalleEpisodio() {
       setEstadoOriginal(episodio.estado);
     }
 
-    // Actualización visual inmediata
-    setEpisodio(prev => ({ ...prev, estado: nuevoEstado }));
-    setCambioPendiente(true);
+    const fechaRegistro = new Date().toISOString();
 
-    // Limpiamos cualquier temporizador anterior
-    if (timerId) clearTimeout(timerId);
+    try {
+      // A. GUARDAMOS EN FIREBASE AL INSTANTE
+      const epRef = doc(db, "patients", id, "episodes", epId);
+      await updateDoc(epRef, { estado: nuevoEstado, fecha_registro_estado: fechaRegistro });
+      
+      const pacRef = doc(db, "patients", id);
+      await updateDoc(pacRef, { estado: nuevoEstado, fecha_registro_estado: fechaRegistro });
 
-    // Creamos el nuevo temporizador de 1 minutos (60000 ms)
-    // Nota para pruebas: puedes cambiar 60000 por 5000 (5 segundos) para probar que se guarda en Firebase.
-    const newTimer = setTimeout(async () => {
-      try {
-        const epRef = doc(db, "patients", id, "episodes", epId);
-        await updateDoc(epRef, {
-          estado: nuevoEstado,
-          fecha_registro_estado: fechaRegistro
-        });
-        const pacRef = doc(db, "patients", id);
-        await updateDoc(pacRef, {
-          estado: nuevoEstado,
-          fecha_registro_estado: fechaRegistro
-        });
+      // B. ACTUALIZAMOS LA PANTALLA VISUALMENTE
+      setEpisodio(prev => ({ ...prev, estado: nuevoEstado }));
+      setCambioPendiente(true);
 
+      // C. EL TEMPORIZADOR AHORA SOLO SIRVE PARA OCULTAR EL BOTÓN "DESHACER"
+      if (timerId) clearTimeout(timerId);
+      const newTimer = setTimeout(() => {
         setCambioPendiente(false);
         setEstadoOriginal(null);
-      } catch (e) {
-        console.error("Error guardando el estado definitivo:", e);
-      }
-    }, 60000); 
+      }, 60000); // 1 minuto (60000 ms) para que desaparezca el aviso
+      setTimerId(newTimer);
 
-    setTimerId(newTimer);
+    } catch (e) {
+      console.error("Error guardando el estado:", e);
+      alert("Hubo un error de conexión.");
+    }
+  }
+
+  // 2. EL BOTÓN DESHACER VUELVE A ESCRIBIR EN FIREBASE
+  async function cancelarCambio() {
+    if (timerId) clearTimeout(timerId);
+    
+    const estadoAnterior = estadoOriginal || "en curso";
+    
+    try {
+      // Revertimos en Firebase al instante
+      const epRef = doc(db, "patients", id, "episodes", epId);
+      await updateDoc(epRef, { estado: estadoAnterior });
+      
+      const pacRef = doc(db, "patients", id);
+      await updateDoc(pacRef, { estado: estadoAnterior });
+
+      // Revertimos en la pantalla
+      setEpisodio(prev => ({ ...prev, estado: estadoAnterior }));
+      setCambioPendiente(false);
+      setEstadoOriginal(null);
+    } catch (e) {
+      console.error("Error al deshacer:", e);
+    }
   }
 
   function cancelarCambio() {

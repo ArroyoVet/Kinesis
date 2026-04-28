@@ -42,10 +42,11 @@ export default function NuevoEpisodio() {
       });
       // Actualizar estado y color del paciente
       await updateDoc(doc(db, "patients", id), {
-        estado: "en curso",
-        color: form.color,
-        motivoConsulta: form.motivoConsulta,
-      });
+          estado: "en curso",
+          color: form.color,
+          motivoConsulta: form.motivoConsulta,
+          fecha_registro_estado: new Date().toISOString(), // <-- Para que el reporte sepa cuándo inició este nuevo ciclo
+        });
       navigate(`/pacientes/${id}`);
     } catch (err) {
       alert("Error al guardar: " + err.message);
