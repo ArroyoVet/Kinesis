@@ -52,48 +52,40 @@ export default function Pacientes() {
     }
   }
 
-  // NUEVA FUNCIÓN: Cambiar el estado directamente desde la lista
   async function handleCambiarEstadoDirecto(pacienteId, nuevoEstado) {
-  // Normalizamos el texto (Ej: "en curso" -> "En curso")
-  const estadoFormateado = nuevoEstado.charAt(0).toUpperCase() + nuevoEstado.slice(1);
-
-  try {
-    const fechaRegistro = new Date().toISOString();
-
-    // 1. Actualizamos el documento del Paciente (lo que ves en la lista)
-    const pacienteRef = doc(db, "patients", pacienteId);
-    await updateDoc(pacienteRef, { 
-      estado: estadoFormateado,
-      fecha_registro_estado: fechaRegistro 
-    });
-
-    // 2. BUSCAMOS EL EPISODIO ACTIVO PARA SINCRONIZAR
-    // Traemos el último episodio creado para este paciente
-    const qEpisodios = query(
-      collection(db, "patients", pacienteId, "episodes"),
-      orderBy("creadoEn", "desc"),
-      limit(1)
-    );
-    const snapEp = await getDocs(qEpisodios);
-
-    if (!snapEp.empty) {
-      const epId = snapEp.docs[0].id;
-      const epRef = doc(db, "patients", pacienteId, "episodes", epId);
-      await updateDoc(epRef, { 
-        estado: estadoFormateado,
+    try {
+      const fechaRegistro = new Date().toISOString();
+      // Guardamos directamente el "nuevoEstado" que viene en minúscula desde el select
+      
+      const pacienteRef = doc(db, "patients", pacienteId);
+      await updateDoc(pacienteRef, { 
+        estado: nuevoEstado,
         fecha_registro_estado: fechaRegistro 
       });
+
+      const qEpisodios = query(
+        collection(db, "patients", pacienteId, "episodes"),
+        orderBy("creadoEn", "desc") // Usa "creadoEn" o "fechaInicio" según cómo lo tengas en tu base
+      );
+      const snapEp = await getDocs(qEpisodios);
+
+      if (!snapEp.empty) {
+        const epId = snapEp.docs[0].id;
+        const epRef = doc(db, "patients", pacienteId, "episodes", epId);
+        await updateDoc(epRef, { 
+          estado: nuevoEstado,
+          fecha_registro_estado: fechaRegistro 
+        });
+      }
+
+      setPacientes(prev => prev.map(p => 
+        p.id === pacienteId ? { ...p, estado: nuevoEstado } : p
+      ));
+
+    } catch (error) {
+      console.error("Error al sincronizar estado:", error);
     }
-
-    // 3. Actualizamos el estado local para que la UI se vea bien
-    setPacientes(prev => prev.map(p => 
-      p.id === pacienteId ? { ...p, estado: estadoFormateado } : p
-    ));
-
-  } catch (error) {
-    console.error("Error al sincronizar estado:", error);
   }
-}
 
   const filtrados = pacientes.filter(p => {
     const coincideBusqueda = p.nombre?.toLowerCase().includes(busqueda.toLowerCase());
@@ -164,8 +156,8 @@ export default function Pacientes() {
                 
                 {/* REEMPLAZO: SELECT INTERACTIVO EN LUGAR DE SPAN */}
                 <select
-                  value={p.estado || "en curso"}
-                  onClick={(e) => e.stopPropagation()} // Evita que se abra el perfil al hacer clic en el select
+                  value={(p.estado || "en curso").toLowerCase()} // <-- Esto evita el error visual
+                  onClick={(e) => e.stopPropagation()}
                   onChange={(e) => handleCambiarEstadoDirecto(p.id, e.target.value)}
                   style={{
                     ...styles.badgeSelect,
@@ -173,7 +165,7 @@ export default function Pacientes() {
                   }}
                 >
                   <option value="en curso">En curso</option>
-                  <option value="alta">Alta médica</option>
+                  <option value="alta">Alta</option>
                   <option value="abandono">Abandono</option>
                 </select>
 
@@ -231,8 +223,9 @@ export default function Pacientes() {
 }
 
 function badgeColor(estado) {
-  if (estado === "alta") return "#22c55e";
-  if (estado === "abandono") return "#ef4444";
+  const est = (estado || "").toLowerCase();
+  if (est === "alta") return "#22c55e";
+  if (est === "abandono") return "#ef4444";
   return "#2563eb"; // en curso
 }
 
