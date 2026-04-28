@@ -149,7 +149,7 @@ export default function Pacientes() {
                   }}
                 >
                   <option value="en curso">En curso</option>
-                  <option value="alta">Alta</option>
+                  <option value="alta">Alta médica</option>
                   <option value="abandono">Abandono</option>
                 </select>
 
