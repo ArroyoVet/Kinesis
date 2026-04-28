@@ -65,7 +65,6 @@ export default function DetallePaciente() {
   // Función para estandarizar el texto visual del estado
   function formatearEstado(estadoRaw) {
     if (!estadoRaw) return "En curso";
-    // Si viene como "alta", lo pasa a "Alta". Si es "en curso", "En curso".
     return estadoRaw.charAt(0).toUpperCase() + estadoRaw.slice(1).toLowerCase();
   }
 
@@ -80,22 +79,23 @@ export default function DetallePaciente() {
 
         {/* Ficha del paciente */}
         <div style={styles.ficha}>
+          
+          {/* Cabecera optimizada para móvil */}
           <div style={styles.fichaHeader}>
-            <div style={{ ...styles.colorDot, background: paciente.color || "#2563eb" }} />
-            <div>
-              <h2 style={styles.nombre}>{paciente.nombre}</h2>
-              <p style={styles.subinfo}>
-                {paciente.sexo === "M" ? "Masculino" : paciente.sexo === "F" ? "Femenino" : "Sin especificar"} 
-                {paciente.fechaNacimiento ? ` · Nacimiento: ${paciente.fechaNacimiento}` : ""}
-              </p>
+            <div style={styles.fichaLeft}>
+              <div style={{ ...styles.colorDot, background: paciente.color || "#2563eb", marginTop: "0.4rem" }} />
+              <div>
+                <h2 style={styles.nombre}>{paciente.nombre}</h2>
+                <p style={styles.subinfo}>
+                  {paciente.sexo === "M" ? "Masculino" : paciente.sexo === "F" ? "Femenino" : "Sin especificar"} 
+                  {paciente.fechaNacimiento ? ` · Nacimiento: ${paciente.fechaNacimiento}` : ""}
+                </p>
+              </div>
             </div>
             
-            <div style={{ marginLeft: "auto", display: "flex", gap: "0.5rem" }}>
+            <div style={styles.fichaRight}>
               {role !== "admin" && (
-                <button 
-                  style={{ padding: "0.5rem 1rem", borderRadius: "0.5rem", border: "1px solid #fecaca", background: "#fff5f5", color: "#ef4444", cursor: "pointer", fontWeight: "500" }} 
-                  onClick={handleEliminarPaciente}
-                >
+                <button style={styles.btnEliminar} onClick={handleEliminarPaciente}>
                   🗑️ Eliminar
                 </button>
               )}
@@ -106,10 +106,22 @@ export default function DetallePaciente() {
           </div>
 
           <div style={styles.datosGrid}>
-            <div style={styles.dato}><span style={styles.datoLabel}>Celular</span><span>{paciente.celular || "—"}</span></div>
-            <div style={styles.dato}><span style={styles.datoLabel}>Fecha de nacimiento</span><span>{paciente.fechaNacimiento || "—"}</span></div>
-            <div style={styles.dato}><span style={styles.datoLabel}>Diagnóstico</span><span>{paciente.diagnosticoCIE10 || "—"}</span></div>
-            <div style={styles.dato}><span style={styles.datoLabel}>Lugar de trabajo</span><span>{paciente.workplaceId || "—"}</span></div>
+            <div style={styles.dato}>
+              <span style={styles.datoLabel}>Celular</span>
+              <span style={styles.datoValor}>{paciente.celular || "—"}</span>
+            </div>
+            <div style={styles.dato}>
+              <span style={styles.datoLabel}>Fecha de nacimiento</span>
+              <span style={styles.datoValor}>{paciente.fechaNacimiento || "—"}</span>
+            </div>
+            <div style={styles.dato}>
+              <span style={styles.datoLabel}>Diagnóstico</span>
+              <span style={styles.datoValor}>{paciente.diagnosticoCIE10 || "—"}</span>
+            </div>
+            <div style={styles.dato}>
+              <span style={styles.datoLabel}>Lugar de trabajo</span>
+              <span style={styles.datoValor}>{paciente.workplaceId || "—"}</span>
+            </div>
           </div>
         </div>
 
@@ -136,7 +148,6 @@ export default function DetallePaciente() {
                 </div>
               </div>
               <div style={styles.epRight}>
-                {/* Etiqueta de solo lectura, formateada limpiamente */}
                 <span style={{ ...styles.badge, background: badgeColor(ep.estado) }}>
                   {formatearEstado(ep.estado)}
                 </span>
@@ -150,7 +161,6 @@ export default function DetallePaciente() {
   );
 }
 
-// Actualizado para ser tolerante a mayúsculas o minúsculas que vengan de Firebase
 function badgeColor(estado) {
   const est = (estado || "").toLowerCase();
   if (est === "alta") return "#22c55e";
@@ -163,14 +173,23 @@ const styles = {
   container: { padding: "0.75rem 1rem", maxWidth: "800px", margin: "0 auto" },
   btnVolver: { background: "none", border: "none", color: "#2563eb", cursor: "pointer", fontSize: "1rem", fontWeight: "500", marginBottom: "1rem" },
   ficha: { background: "white", borderRadius: "1rem", padding: "1.5rem", boxShadow: "0 2px 8px rgba(0,0,0,0.07)", marginBottom: "1.5rem" },
-  fichaHeader: { display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.25rem" },
-  colorDot: { width: "18px", height: "18px", borderRadius: "50%", flexShrink: 0 },
-  nombre: { margin: 0, fontSize: "1.4rem", color: "#1e293b" },
-  subinfo: { margin: 0, color: "#64748b", fontSize: "0.9rem" },
-  btnEditar: { marginLeft: "auto", padding: "0.5rem 1rem", borderRadius: "0.5rem", border: "1px solid #e2e8f0", background: "white", cursor: "pointer", fontWeight: "500" },
-  datosGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "0.75rem" },
+  
+  // Clases modificadas para arreglar el amontonamiento
+  fichaHeader: { display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", marginBottom: "1.5rem" },
+  fichaLeft: { display: "flex", alignItems: "flex-start", gap: "0.75rem", flex: "1 1 250px" },
+  fichaRight: { display: "flex", gap: "0.5rem" },
+  btnEliminar: { padding: "0.5rem 1rem", borderRadius: "0.5rem", border: "1px solid #fecaca", background: "#fff5f5", color: "#ef4444", cursor: "pointer", fontWeight: "500" },
+  btnEditar: { padding: "0.5rem 1rem", borderRadius: "0.5rem", border: "1px solid #e2e8f0", background: "white", cursor: "pointer", fontWeight: "500" },
+  
+  datosGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1rem" },
   dato: { display: "flex", flexDirection: "column", gap: "0.2rem" },
   datoLabel: { fontSize: "0.78rem", color: "#94a3b8", fontWeight: "600", textTransform: "uppercase" },
+  datoValor: { fontSize: "0.95rem", color: "#1e293b", wordBreak: "break-word" }, // Permite que textos largos se rompan
+  
+  colorDot: { width: "18px", height: "18px", borderRadius: "50%", flexShrink: 0 },
+  nombre: { margin: 0, fontSize: "1.4rem", color: "#1e293b", lineHeight: "1.2" },
+  subinfo: { margin: "0.25rem 0 0 0", color: "#64748b", fontSize: "0.9rem" },
+  
   seccion: { background: "white", borderRadius: "1rem", padding: "1.5rem", boxShadow: "0 2px 8px rgba(0,0,0,0.07)" },
   seccionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" },
   seccionTitulo: { margin: 0, color: "#1e293b" },
