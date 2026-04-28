@@ -63,13 +63,13 @@ export default function VistaAnual({ fecha }) {
 const stylesAnual = {
   grid: {
   display: "grid",
-  gridTemplateColumns: "repeat(4, 1fr)",
+  gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
   gap: "0.75rem",
 },
   card: {
   background: "white",
   borderRadius: "0.75rem",
-  padding: "0.85rem 1rem",
+  padding: "0.75rem",
   boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
   border: "1px solid #f1f5f9",
   display: "flex",
