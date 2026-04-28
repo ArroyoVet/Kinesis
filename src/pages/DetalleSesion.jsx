@@ -125,7 +125,7 @@ export default function DetalleSesion() {
 
 const styles = {
   loading: { padding: "2rem", textAlign: "center", color: "#64748b" },
-  container: { padding: "1.5rem", maxWidth: "700px", margin: "0 auto" },
+  container: { padding: "0.75rem 1rem", maxWidth: "700px", margin: "0 auto" },
   btnVolver: { background: "none", border: "none", color: "#2563eb", cursor: "pointer", fontSize: "1rem", fontWeight: "500", marginBottom: "1rem" },
   header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", background: "white", padding: "1.5rem", borderRadius: "1rem", boxShadow: "0 2px 8px rgba(0,0,0,0.07)", marginBottom: "1rem" },
   titulo: { margin: 0, fontSize: "1.4rem", color: "#1e293b" },

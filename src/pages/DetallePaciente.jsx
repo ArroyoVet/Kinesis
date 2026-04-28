@@ -145,7 +145,7 @@ function badgeColor(estado) {
 
 const styles = {
   loading: { padding: "2rem", textAlign: "center", color: "#64748b" },
-  container: { padding: "1.5rem", maxWidth: "800px", margin: "0 auto" },
+  container: { padding: "0.75rem 1rem", maxWidth: "800px", margin: "0 auto" },
   btnVolver: { background: "none", border: "none", color: "#2563eb", cursor: "pointer", fontSize: "1rem", fontWeight: "500", marginBottom: "1rem" },
   ficha: { background: "white", borderRadius: "1rem", padding: "1.5rem", boxShadow: "0 2px 8px rgba(0,0,0,0.07)", marginBottom: "1.5rem" },
   fichaHeader: { display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.25rem" },

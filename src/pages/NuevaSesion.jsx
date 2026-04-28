@@ -231,7 +231,7 @@ export default function NuevaSesion() {
 }
 
 const styles = {
-  container: { padding: "1.5rem", maxWidth: "680px", margin: "0 auto" },
+  container: { padding: "0.75rem 1rem", maxWidth: "680px", margin: "0 auto" },
   header: { display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.5rem" },
   titulo: { fontSize: "1.5rem", color: "#1e293b", margin: 0 },
   btnVolver: { background: "none", border: "none", color: "#2563eb", cursor: "pointer", fontSize: "1rem", fontWeight: "500" },

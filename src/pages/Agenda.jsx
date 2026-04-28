@@ -87,7 +87,7 @@ export default function Agenda() {
 }
 
 const styles = {
-  container: { padding: "1.5rem", maxWidth: "1100px", margin: "0 auto" },
+  container: { padding: "0.75rem 1rem", maxWidth: "1100px", margin: "0 auto" },
   header: { display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1.5rem" },
   vistas: { display: "flex", gap: "0.5rem" },
   vistaBtn: {

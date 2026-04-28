@@ -191,7 +191,7 @@ function badgeColor(estado) {
 
 const styles = {
   loading: { padding: "2rem", textAlign: "center", color: "#64748b" },
-  container: { padding: "1.5rem", maxWidth: "800px", margin: "0 auto" },
+  container: { padding: "0.75rem 1rem", maxWidth: "800px", margin: "0 auto" },
   btnVolver: { background: "none", border: "none", color: "#2563eb", cursor: "pointer", fontSize: "1rem", fontWeight: "500", marginBottom: "1rem" },
   header: { display: "flex", alignItems: "center", gap: "1rem", background: "white", padding: "1.5rem", borderRadius: "1rem", boxShadow: "0 2px 8px rgba(0,0,0,0.07)", marginBottom: "1rem" },
   colorDot: { width: "18px", height: "18px", borderRadius: "50%", flexShrink: 0 },

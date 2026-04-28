@@ -187,7 +187,7 @@ function badgeColor(estado) {
 }
 
 const styles = {
-  container: { padding: "1.5rem", maxWidth: "900px", margin: "0 auto" },
+  container: { padding: "0.75rem 1rem", maxWidth: "900px", margin: "0 auto" },
   header: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" },
   titulo: { fontSize: "1.75rem", color: "#1e293b", margin: 0 },
   btnNuevo: {
