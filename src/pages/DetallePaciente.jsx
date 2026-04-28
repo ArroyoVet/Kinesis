@@ -3,74 +3,39 @@ import { db } from "../firebase/config";
 import { doc, getDoc, collection, getDocs, orderBy, query, deleteDoc } from "firebase/firestore";
 import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
-import { useAuth } from "../context/AuthContext"; // Importar arriba
-
+import { useAuth } from "../context/AuthContext";
 
 export default function DetallePaciente() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { role } = useAuth();
+  
   const [paciente, setPaciente] = useState(null);
   const [episodios, setEpisodios] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [timerIds, setTimerIds] = useState({});
-  const [episodiosPendientes, setEpisodiosPendientes] = useState({});
 
   useEffect(() => {
     async function cargar() {
-      const docRef = doc(db, "patients", id);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setPaciente({ id: docSnap.id, ...docSnap.data() });
-        const epSnap = await getDocs(
-          query(collection(db, "patients", id, "episodes"), orderBy("fechaInicio", "desc"))
-        );
-        setEpisodios(epSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      try {
+        const docRef = doc(db, "patients", id);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          setPaciente({ id: docSnap.id, ...docSnap.data() });
+          
+          const epSnap = await getDocs(
+            query(collection(db, "patients", id, "episodes"), orderBy("fechaInicio", "desc"))
+          );
+          setEpisodios(epSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        }
+      } catch (error) {
+        console.error("Error al cargar detalle del paciente:", error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     cargar();
   }, [id]);
-
-function handleCambioEstadoEpisodio(episodioId, nuevoEstado, estadoActual) {
-    if (nuevoEstado === estadoActual) return;
-
-    // 1. Actualización Optimista en la UI
-    setEpisodios(prev => prev.map(ep => 
-      ep.id === episodioId ? { ...ep, estado: nuevoEstado } : ep
-    ));
-    setEpisodiosPendientes(prev => ({ ...prev, [episodioId]: true }));
-
-    // Limpiamos el timer si ya existía uno para este episodio
-    if (timerIds[episodioId]) clearTimeout(timerIds[episodioId]);
-
-    // 2. Temporizador de 1 minuto (60000 ms)
-    const newTimer = setTimeout(async () => {
-      try {
-        const fechaRegistro = new Date().toISOString();
-        
-        // A. Actualizamos el Episodio
-        const epRef = doc(db, "patients", id, "episodes", episodioId);
-        await updateDoc(epRef, {
-          estado: nuevoEstado,
-          fecha_registro_estado: fechaRegistro
-        });
-
-        // B. Sincronizamos el Paciente (Para que la lista general Pacientes.jsx se actualice)
-        const pacRef = doc(db, "patients", id);
-        await updateDoc(pacRef, {
-          estado: nuevoEstado,
-          fecha_registro_estado: fechaRegistro
-        });
-
-        setEpisodiosPendientes(prev => ({ ...prev, [episodioId]: false }));
-      } catch (e) {
-        console.error("Error guardando el estado definitivo:", e);
-      }
-    }, 60000); 
-
-    setTimerIds(prev => ({ ...prev, [episodioId]: newTimer }));
-  }
 
   function calcularEdad(fechaNacimiento) {
     if (!fechaNacimiento) return "—";
@@ -82,10 +47,7 @@ function handleCambioEstadoEpisodio(episodioId, nuevoEstado, estadoActual) {
     return edad + " años";
   }
 
-  if (loading) return <div style={styles.loading}>Cargando...</div>;
-  if (!paciente) return <div style={styles.loading}>Paciente no encontrado</div>;
-
-async function handleEliminarPaciente() {
+  async function handleEliminarPaciente() {
     const confirmar = window.confirm(
       "¿Estás seguro de eliminar a este paciente? Esta acción ocultará su expediente por completo."
     );
@@ -93,12 +55,22 @@ async function handleEliminarPaciente() {
     if (confirmar) {
       try {
         await deleteDoc(doc(db, "patients", id));
-        navigate("/pacientes"); // Lo regresamos a la lista general
+        navigate("/pacientes");
       } catch (error) {
         alert("Error al eliminar: " + error.message);
       }
     }
   }
+
+  // Función para estandarizar el texto visual del estado
+  function formatearEstado(estadoRaw) {
+    if (!estadoRaw) return "En curso";
+    // Si viene como "alta", lo pasa a "Alta". Si es "en curso", "En curso".
+    return estadoRaw.charAt(0).toUpperCase() + estadoRaw.slice(1).toLowerCase();
+  }
+
+  if (loading) return <div style={styles.loading}>Cargando...</div>;
+  if (!paciente) return <div style={styles.loading}>Paciente no encontrado</div>;
 
   return (
     <div>
@@ -108,20 +80,17 @@ async function handleEliminarPaciente() {
 
         {/* Ficha del paciente */}
         <div style={styles.ficha}>
-          <div style={styles.perfilHeader}>
+          <div style={styles.fichaHeader}>
             <div style={{ ...styles.colorDot, background: paciente.color || "#2563eb" }} />
             <div>
-              <h2 style={styles.nombrePaciente}>{paciente.nombre}</h2>
+              <h2 style={styles.nombre}>{paciente.nombre}</h2>
               <p style={styles.subinfo}>
                 {paciente.sexo === "M" ? "Masculino" : paciente.sexo === "F" ? "Femenino" : "Sin especificar"} 
                 {paciente.fechaNacimiento ? ` · Nacimiento: ${paciente.fechaNacimiento}` : ""}
               </p>
             </div>
             
-            {/* Agrupamos los botones a la derecha */}
             <div style={{ marginLeft: "auto", display: "flex", gap: "0.5rem" }}>
-              
-              {/* Botón de Eliminar (Solo licenciado) */}
               {role !== "admin" && (
                 <button 
                   style={{ padding: "0.5rem 1rem", borderRadius: "0.5rem", border: "1px solid #fecaca", background: "#fff5f5", color: "#ef4444", cursor: "pointer", fontWeight: "500" }} 
@@ -130,7 +99,6 @@ async function handleEliminarPaciente() {
                   🗑️ Eliminar
                 </button>
               )}
-
               <button style={styles.btnEditar} onClick={() => navigate(`/pacientes/${id}/editar`)}>
                 ✏️ Editar
               </button>
@@ -168,7 +136,10 @@ async function handleEliminarPaciente() {
                 </div>
               </div>
               <div style={styles.epRight}>
-                <span style={{ ...styles.badge, background: badgeColor(ep.estado) }}>{ep.estado}</span>
+                {/* Etiqueta de solo lectura, formateada limpiamente */}
+                <span style={{ ...styles.badge, background: badgeColor(ep.estado) }}>
+                  {formatearEstado(ep.estado)}
+                </span>
                 <span style={styles.flecha}>›</span>
               </div>
             </div>
@@ -179,10 +150,12 @@ async function handleEliminarPaciente() {
   );
 }
 
+// Actualizado para ser tolerante a mayúsculas o minúsculas que vengan de Firebase
 function badgeColor(estado) {
-  if (estado === "alta") return "#22c55e";
-  if (estado === "abandono") return "#ef4444";
-  return "#2563eb";
+  const est = (estado || "").toLowerCase();
+  if (est === "alta") return "#22c55e";
+  if (est === "abandono") return "#ef4444";
+  return "#2563eb"; // "en curso" u otros
 }
 
 const styles = {
